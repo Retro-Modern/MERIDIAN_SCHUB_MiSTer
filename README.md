@@ -14,6 +14,14 @@
 > every fix first; this repository takes them over. The core file is
 > `releases/MERIDIAN_SCHUB_<date>.rbf`.
 
+![NACHTFLIPPER running on MERIDIAN 816 with SCHUB](Screens/SCHUB_NACHTFLIPPER.gif)
+
+*NACHTFLIPPER, a pinball game still in development, recorded on a real
+MiSTer. SCHUB runs the whole game logic with 120 physics steps per second and
+masks the ball under the ramps; PINSEL scrolls the 256-colour table, KOBOLD
+moves ball and flippers, ORGEL plays the music. The game is not part of this
+repository.*
+
 
 *A home computer that never existed — somewhere between the Commodore 64 and
 the Amiga.*
