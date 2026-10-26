@@ -13,3 +13,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/meridian_core.sv
 set_global_assignment -name SDC_FILE Meridian.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE Meridian.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/draht.sv
+
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/schub/schub.sv
+set_global_assignment -name VERILOG_FILE rtl/schub/VexRiscv.v

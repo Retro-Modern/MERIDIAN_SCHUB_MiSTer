@@ -2,7 +2,7 @@
 CPU = ../rtl/cpu65c816/P65C816_pkg.sv ../rtl/cpu65c816/P65C816.sv ../rtl/cpu65c816/mcode.sv \
       ../rtl/cpu65c816/AddrGen.sv ../rtl/cpu65c816/ALU.sv ../rtl/cpu65c816/AddSubBCD.sv \
       ../rtl/cpu65c816/BCDAdder.v ../rtl/cpu65c816/adder4.v ../rtl/cpu65c816/bit_adder.v
-RTL = ../rtl/meridian_core.sv ../rtl/kobold.sv ../rtl/pinsel.sv ../rtl/pforte.sv ../rtl/bote.sv ../rtl/orgel.sv ../rtl/kran.sv ../rtl/lotse.sv ../rtl/zusatz.sv ../rtl/truhe.sv ../rtl/draht.sv
+RTL = ../rtl/schub/schub.sv ../rtl/schub/VexRiscv.v ../rtl/meridian_core.sv ../rtl/kobold.sv ../rtl/pinsel.sv ../rtl/pforte.sv ../rtl/bote.sv ../rtl/orgel.sv ../rtl/kran.sv ../rtl/lotse.sv ../rtl/zusatz.sv ../rtl/truhe.sv ../rtl/draht.sv
 
 obj_dir/meridian_sim: $(CPU) $(RTL) ../rom/kern.hex ../rom/basic.hex ../rom/dos.hex ../rom/song.hex ../rom/werkstatt.hex tb.cpp
 	verilator --cc --exe --build -j 8 -O3 --x-assign fast --x-initial fast \

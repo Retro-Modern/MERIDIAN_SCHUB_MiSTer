@@ -52,6 +52,10 @@
 // mit MERIDIAN_TON, beide ab Bild 0 bzw. Takt 0).
 
 #include "Vmeridian_core.h"
+#include "Vmeridian_core_meridian_core.h"
+#include "Vmeridian_core_schub.h"
+#include "Vmeridian_core_VexRiscv.h"
+#include <map>
 #include "verilated.h"
 
 #include <cstdio>
@@ -361,6 +365,25 @@ int main(int argc, char** argv) {
     long ton_werte = 0;
 
     Sdram sdram;
+    // MERIDIAN_PRELOAD="addr=file,...": preload SDRAM data/code for tests. BOTE still
+    // loads and starts the bank-zero entry, exercising the real ROM startup.
+    if (getenv("MERIDIAN_PRELOAD")) {
+        std::string list=getenv("MERIDIAN_PRELOAD"); size_t start=0;
+        while(start<list.size()) {
+            size_t end=list.find(',',start);if(end==std::string::npos)end=list.size();
+            std::string item=list.substr(start,end-start);size_t eq=item.find('=');
+            if(eq!=std::string::npos) {
+                unsigned long addr=strtoul(item.substr(0,eq).c_str(),nullptr,16);
+                FILE* f=fopen(item.substr(eq+1).c_str(),"rb");int c;
+                while(f && (c=fgetc(f))!=EOF) {
+                    uint16_t &w=sdram.mem[(addr>>1)&(sdram.mem.size()-1)];
+                    w=(addr&1)?((w&255)|(c<<8)):((w&0xff00)|c);addr++;
+                }
+                if(f)fclose(f);
+            }
+            start=end+1;
+        }
+    }
     Vmeridian_core* top = new Vmeridian_core;
     top->pal = pal;
     top->ps2_key = 0;
@@ -417,6 +440,7 @@ int main(int argc, char** argv) {
     top->sd_buff_addr = 0;
     top->sd_buff_dout = 0;
     top->sd_buff_wr = 0;
+    top->schub_enable = 0;
     top->reset = 1;
     top->clk = 0;
     top->clk48 = 0;
@@ -427,6 +451,20 @@ int main(int argc, char** argv) {
     int prev_hbl = 1, prev_vbl = 1, prev_hs = 0, prev_vs = 0, hs_pulse = 0;
     uint64_t letzte_vs = 0, vs_abstand = 0;
     long zyklen = 0;
+    std::map<unsigned,unsigned long> pc_samples;
+    unsigned long profile_samples=0,icache_wait=0,dcache_wait=0;
+    FILE* fpslog=getenv("MERIDIAN_FRAMES")?fopen(getenv("MERIDIAN_FRAMES"),"w"):nullptr;
+    if(fpslog)fprintf(fpslog,"seconds,frame,gamestate,menu,x,y,health\n");
+    std::deque<std::pair<int,int>> schub_osd;
+    if(const char* events=getenv("MERIDIAN_SCHUB_OSD")){
+        std::string list=events;size_t pos=0;
+        while(pos<list.size()){
+            size_t end=list.find(',',pos);if(end==std::string::npos)end=list.size();
+            std::string item=list.substr(pos,end-pos);int at,val;
+            if(sscanf(item.c_str(),"%d:%d",&at,&val)==2)schub_osd.push_back({at,val});
+            pos=end+1;
+        }
+    }
 
     uint64_t takte = (uint64_t)(sekunden * TAKT);
     const bool im_reset = getenv("MERIDIAN_MENUE_IM_RESET") != nullptr;
@@ -454,6 +492,18 @@ int main(int argc, char** argv) {
             printf("Bild %d: Reset los (nach dem Laden im Reset)\n", frame);
         }
 
+        if(getenv("MERIDIAN_PROFILE") && top->schub_enabled && t%1009==0 && fenster[0xdf04]==3 && fenster[0xdf16]==0 && !fenster[0xdf17]){
+            auto cpu=top->meridian_core->schub->cpu;
+            pc_samples[cpu->__PVT__memory_to_writeBack_PC]++;
+            profile_samples++;
+            icache_wait+=cpu->__PVT__IBusCachedPlugin_cache__DOT__lineLoader_valid;
+            dcache_wait+=cpu->__PVT__dataCache_1__DOT__loader_valid;
+        }
+        // Model hps_io feedback; explicit OSD events take priority in this tick.
+        if(top->schub_osd_update)top->schub_enable=top->schub_enabled;
+        if(!schub_osd.empty() && frame>=schub_osd.front().first){
+            top->schub_enable=schub_osd.front().second;schub_osd.pop_front();
+        }
         // Tippen: ab dem Startbild alle Tasten als Ereignisfolge einplanen
         if (frame == tipp_ab && !tippen.empty() && ereignisse.empty()) {
             uint64_t z = t;
@@ -654,6 +704,12 @@ int main(int argc, char** argv) {
             for (int i = 0; i < 8; i++)
                 if ((top->ddr_be >> i) & 1)
                     fenster[(top->ddr_addr - FENSTER) * 8 + i] = (uint8_t)(top->ddr_din >> (8 * i));
+            // Last byte of the frame counter publishes the complete sample.
+            if(fpslog && (top->ddr_addr-FENSTER)*8==0xdf08 && (top->ddr_be&0x80)){
+                auto u32=[&](unsigned a){return uint32_t(fenster[a])|(uint32_t(fenster[a+1])<<8)|(uint32_t(fenster[a+2])<<16)|(uint32_t(fenster[a+3])<<24);};
+                fprintf(fpslog,"%.9f,%u,%u,%u,%d,%d,%u\n",double(t)/TAKT,u32(0xdf0c),fenster[0xdf16],fenster[0xdf17],int32_t(u32(0xdf80)),int32_t(u32(0xdf84)),fenster[0xdf88]|fenster[0xdf89]<<8);
+                fflush(fpslog);
+            }
         }
 
         if (top->dbg_ce && zyklen >= spur_ab && zyklen < spur_ab + spur) {
@@ -689,6 +745,9 @@ int main(int argc, char** argv) {
                 if (frame == 2) printf("Bild 2: %d sichtbare Zeilen\n", y);
                 if (abzug_bei.count(frame) && getenv("MERIDIAN_ABZUG"))
                     abzug_schreiben(sdram, getenv("MERIDIAN_ABZUG"), "." + std::to_string(frame));
+                if(getenv("MERIDIAN_DIAG") && frame%60==0){
+                    fprintf(stderr,"frame=%d cpu=%06x SCHUB=%d game=%d rendered=%d\n",frame,top->dbg_addr,top->schub_enabled,fenster[0xdf16],fenster[0xdf0c]|fenster[0xdf0d]<<8);
+                }
                 frame++;
                 y = 0;
             }
@@ -714,6 +773,12 @@ int main(int argc, char** argv) {
         top->clk48 = 0;
         top->eval();
     }
+    if(getenv("MERIDIAN_PROFILE")){
+        FILE* f=fopen(getenv("MERIDIAN_PROFILE"),"w");
+        if(f){fprintf(f,"pc,samples\n");for(auto& it:pc_samples)fprintf(f,"%08x,%lu\n",it.first,it.second);fclose(f);}
+        fprintf(stderr,"SCHUB profile: %lu samples, I-cache refill %lu, D-cache refill %lu\n",profile_samples,icache_wait,dcache_wait);
+    }
+    if(fpslog)fclose(fpslog);
     if (ton) { fclose(ton); printf("Ton: %ld Werte (%.2f s)\n", ton_werte, ton_werte / 48000.0); }
     if (film) { pclose(film); printf("Film: %ld Bilder ab Bild %d\n", film_bilder, film_ab); }
 

@@ -41,6 +41,9 @@ module meridian_core
 	input         clk_sd,       // Takt der Laufwerksseite (nur WIDE = 0, TRUHE)
 	input         reset,
 	input         pal,
+	input         schub_enable,
+	output        schub_enabled,
+	output        schub_osd_update,
 
 	input  [10:0] ps2_key,      // vom MiSTer (hps_io)
 	input  [24:0] ps2_mouse,
@@ -135,7 +138,31 @@ wire cpu_rst_n = (rst_cnt == 4'hF);
 
 //////////////////////////////  CPU  ////////////////////////////////////////
 
-wire [23:0] a;
+wire [23:0] a, native_a;
+wire [7:0] native_dout;
+wire native_we_n, native_vda, native_vpa;
+wire s_req, s_we, s_active, s_busy;
+wire sf_req, sf_we, sf_w16, sf_ack;
+wire [23:0] sf_addr;
+wire [15:0] sf_din;
+wire [23:0] s_addr;
+wire [7:0] s_din, s_reg_q;
+reg s_owner;
+// Change masters only at the end of a completed byte transfer. BOTE's
+// existing halt and SDRAM wait logic apply to both bus masters.
+assign a=s_owner?s_addr:native_a;
+assign cpu_dout=s_owner?s_din:native_dout;
+assign cpu_we_n=s_owner?!s_we:native_we_n;
+assign vda=s_owner?1'b1:native_vda;
+assign vpa=s_owner?1'b0:native_vpa;
+wire s_ack=s_owner && cpu_ce && cpu_rdy;
+always @(posedge clk)begin
+    if(!cpu_rst_n)s_owner<=0;
+    else if(cpu_ce && cpu_rdy)begin
+        if(s_owner)s_owner<=0;
+        else if(s_req)s_owner<=1;
+    end
+end
 wire  [7:0] cpu_dout;
 wire        cpu_we_n;
 wire        vda, vpa;
@@ -161,17 +188,17 @@ P65C816 cpu
 	.CLK(clk),
 	.RST_N(cpu_rst_n),
 	.CE(cpu_ce),
-	.RDY_IN(cpu_rdy),
+	.RDY_IN(cpu_rdy && !s_owner),
 	.NMI_N(nmi_n && !schritt_nmi),
 	.IRQ_N(~(irq && !schritt_scharf)),
 	.ABORT_N(1'b1),
 	.D_IN(cpu_din),
-	.D_OUT(cpu_dout),
-	.A_OUT(a),
-	.WE(cpu_we_n),
+	.D_OUT(native_dout),
+	.A_OUT(native_a),
+	.WE(native_we_n),
 	.RDY_OUT(),
-	.VPA(vpa),
-	.VDA(vda),
+	.VPA(native_vpa),
+	.VDA(native_vda),
 	.MLB(),
 	.VPB(),
 	.I_FLAG()
@@ -191,6 +218,7 @@ wire is_pfo = bank0 && (a[15:8] == 8'hC1);
 wire is_bot = bank0 && (a[15:8] == 8'hC2);
 wire is_kob = bank0 && (a[15:8] == 8'hC3 || a[15:8] == 8'hC4);
 wire is_org = bank0 && (a[15:8] == 8'hC5);
+wire is_schub = bank0 && (a[15:8] == 8'hCD);
 wire is_org2 = bank0 && (a[15:8] == 8'hCC);           // ORGEL Seite 2: Samplekanaele 4-7
 wire is_kran = bank0 && (a[15:8] == 8'hC6);
 wire is_lot = bank0 && (a[15:8] == 8'hC7);
@@ -519,6 +547,7 @@ wire       kran_busy;
 
 kran kran
 (
+    .schub_enabled(schub_enabled),
 	.clk(clk),
 	.reset(!cpu_rst_n),
 	.reg_addr(io_a[7:0]),
@@ -603,7 +632,7 @@ reg  [22:0] wp_adr;
 reg  [15:0] wp_daten;
 reg         z_ack24;
 reg         z_laeuft = 1'b0;            // ein Auftrag ist unterwegs ...
-reg   [1:0] z_wer;                      // ... von 0: CPU, 1: KRAN/BOTE, 2: ORGEL, 3: Echo
+reg   [2:0] z_wer;                      // ... von 0: CPU, 1: KRAN/BOTE, 2: ORGEL, 3: Echo
 reg         z_w16;                      // Wort schreiben (Echo)
 reg  [15:0] z_din16;
 reg         z_cpu_an, z_cpu_da;         // CPU: Auftrag gestellt / Lesedaten da
@@ -626,15 +655,24 @@ assign      g_org_z    = org_req && org_z && z_bereit && !g_bote_z;
 assign      a_org_z    = z_erledigt && z_wer == 2'd2;
 assign      g_echo_z   = echo_req && z_bereit && !g_bote_z && !g_org_z;
 assign      a_echo_z   = z_erledigt && z_wer == 2'd3;
+reg sf_pending;
+wire sf_protected = sf_req && sf_we && modul_da && sf_addr[23:22]==2'b01;
+wire g_schub_z = sf_req && !sf_protected && !sf_pending && z_bereit && !g_bote_z && !g_org_z && !g_echo_z && !z_cpu_geht;
+assign sf_ack = (z_erledigt && z_wer==3'd4) || (sf_protected && !sf_pending);
+always @(posedge clk)begin
+    if(z_erledigt && z_wer==3'd4)sf_pending<=0;
+    if(g_schub_z)sf_pending<=1;
+    if(reset_z)sf_pending<=0;
+end
 wire        z_cpu_geht = zus_zugriff && !cpu_treffer && !cpu_schutz && !z_cpu_an && z_bereit && cyc != 2'd2 && !g_bote_z && !g_org_z && !g_echo_z;
-wire        g_kran_zs  = kran_req && !kran_chip && !kran_treffer && !kran_schutz && z_bereit && !z_cpu_geht && !g_bote_z && !g_org_z && !g_echo_z;
+wire        g_kran_zs  = kran_req && !kran_chip && !kran_treffer && !kran_schutz && z_bereit && !z_cpu_geht && !g_schub_z && !g_bote_z && !g_org_z && !g_echo_z;
 reg         a_kran_wp;                  // Treffer: Daten im naechsten Takt
 reg   [7:0] kran_wp_q;
 assign      g_kran_z   = g_kran_zs || kran_treffer || kran_schutz;
 assign      a_kran_z   = (z_erledigt && z_wer == 2'd1 && !z_we) || a_kran_wp;
 assign      kran_z_q   = a_kran_wp ? kran_wp_q : z_q24;
 // Kommt ein gelesenes Wort gerade an, gilt fuer Schreibzugriffe schon seine Adresse
-wire        wp_neu     = z_erledigt && !z_we && z_wer[1] == 1'b0;
+wire        wp_neu     = z_erledigt && !z_we && z_wer < 3'd2;
 wire        wp_g_n     = wp_neu || wp_gueltig;
 wire [22:0] wp_adr_n   = wp_neu ? z_adr[23:1] : wp_adr;
 // Lesedaten der CPU gelten schon in dem Takt, in dem sie ankommen (z_q24)
@@ -653,7 +691,7 @@ always @(posedge clk) begin
 			z_cpu_da <= 1'b1;
 			z_cpu_q  <= z_q24;
 		end
-		if (!z_we && z_wer[1] == 1'b0) begin    // gelesenes Wort merken (nicht ORGEL/Echo)
+		if (!z_we && z_wer < 3'd2) begin    // gelesenes Wort merken (nicht ORGEL/Echo)
 			wp_gueltig <= 1'b1;
 			wp_adr     <= z_adr[23:1];
 			wp_daten   <= z_q16_24;
@@ -709,6 +747,12 @@ always @(posedge clk) begin
 		z_wer    <= 2'd0;
 		z_cpu_an <= 1'b1;
 	end
+	else if (g_schub_z) begin
+        z_adr<=sf_addr;z_we<=sf_we;z_w16<=sf_we&&sf_w16;
+        z_din<=sf_din[7:0];z_din16<=sf_din;
+        z_req_t<=~z_req_t;z_laeuft<=1;z_wer<=3'd4;
+        if(sf_we && wp_g_n && sf_addr[23:1]==wp_adr_n)wp_gueltig<=0;
+    end
 	else if (g_kran_zs) begin
 		z_adr    <= kran_addr;
 		z_we     <= kran_we;
@@ -816,12 +860,25 @@ draht draht
 	.ddr_dout_ready(ddr_dout_ready)
 );
 
+//////////////////////////////  SCHUB  //////////////////////////////////////
+schub schub (
+    .clk(clk), .reset(!cpu_rst_n), .osd_enable(schub_enable),
+    .reg_addr(a[7:0]), .reg_din(cpu_dout), .reg_we(wr&&is_schub),
+    .reg_re(cpu_ce&&cpu_rdy&&cpu_we_n&&is_schub&&vda), .reg_dout(s_reg_q),
+    .timer_irq(irq_pfo), .mem_req(s_req), .mem_addr(s_addr), .mem_we(s_we),
+    .mem_din(s_din), .mem_ack(s_ack), .mem_q(cpu_din), .active(s_active), .busy(s_busy),
+    .enabled_state(schub_enabled), .osd_update(schub_osd_update),
+    .fast_req(sf_req), .fast_we(sf_we), .fast_w16(sf_w16), .fast_addr(sf_addr),
+    .fast_din(sf_din), .fast_ack(sf_ack), .fast_q(z_q16_24)
+);
+
 //////////////////////////////  Datenbus zur CPU  ///////////////////////////
 
 always @* begin
 	if (is_rom)      cpu_din = rom_q;
 	else if (is_ram) cpu_din = ram_q;
 	else if (is_pin) cpu_din = pin_dout;
+	else if (is_schub)cpu_din = s_reg_q;
 	else if (is_pfo) cpu_din = pfo_dout;
 	else if (is_bot) cpu_din = bot_dout;
 	else if (is_kob) cpu_din = kob_dout;

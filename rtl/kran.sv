@@ -26,6 +26,8 @@
 //   $0F     MODUS       Bits 0-1: 0 kopieren, 1 fuellen, 2 kopieren ohne
 //                       Bytes = WERT, 3 kopieren ohne Halbbytes = WERT
 //                       (Bits 0-3); Bit 2: Zeile rueckwaerts (von rechts);
+//                       Bit 3 (SCHUB): Quellbyte auf die Zeilenbreite strecken
+//                       (nur Modus 0; ein neues Quellbyte je Zeile).
 //                       Bit 7: letzter Auftrag der Liste
 //   $10     BEFEHL      schreiben: Bit 0 Auftrag aus den Registern starten,
 //                       Bit 1 Auftragsliste ab LISTE starten, Bit 2 abbrechen,
@@ -40,6 +42,7 @@ module kran
 (
 	input             clk,
 	input             reset,
+    input             schub_enabled,
 
 	input       [7:0] reg_addr,
 	input       [7:0] reg_din,
@@ -75,6 +78,7 @@ localparam [3:0] K_RUHE = 4'd0, K_LADEN = 4'd1, K_START = 4'd2, K_LIES = 4'd3,
 reg  [3:0] st;
 reg  [7:0] jb [0:15];               // laufender Auftrag
 reg        liste_an;
+reg        spaltenkopie;
 reg [23:0] lp;
 reg  [4:0] n_req, n_ack;
 
@@ -125,6 +129,7 @@ always @(posedge clk) begin
 			end
 		end
 		K_START: begin
+            spaltenkopie <= schub_enabled && jb[15][3] && j_art==0;
 			s_ptr   <= {jb[2], jb[1], jb[0]};
 			s_zeile <= {jb[2], jb[1], jb[0]};
 			d_ptr   <= {jb[5], jb[4], jb[3]};
@@ -197,6 +202,7 @@ always @(posedge clk) begin
 	end
 	if (reset) begin
 		st       <= K_RUHE;
+        spaltenkopie <= 0;
 		irq_st   <= 1'b0;
 		r_steuer <= 1'b0;
 	end
@@ -221,7 +227,7 @@ task weiter;
 			x_rest <= x_rest - 16'd1;
 			s_ptr  <= s_ptr + schritt;
 			d_ptr  <= d_ptr + schritt;
-			st     <= (j_art == 2'd1) ? K_SCHREIB : K_LIES;
+			st     <= (j_art == 2'd1 || spaltenkopie) ? K_SCHREIB : K_LIES;
 		end
 	end
 endtask

@@ -9,3 +9,5 @@ sim/obj_dir/
 sim/out*/
 *.lst
 __pycache__/
+sim/schub_test/obj_dir/
+sim/schub_test/obj_kran/

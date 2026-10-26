@@ -1,0 +1,10 @@
+{
+  "isa": "RV32IM",
+  "icache_bytes": 65536,
+  "dcache_bytes": 32768,
+  "generator_repository": "https://github.com/litex-hub/pythondata-cpu-vexriscv",
+  "generator_commit": "642ecfed1c84460555d6d803d660cc60cfc1ecb6",
+  "cpu_repository": "https://github.com/SpinalHDL/VexRiscv",
+  "cpu_commit": "b6118e5cc2a33323425df6455697139021d50c72",
+  "sha256": "27243bb1adffc48c94b135263441333d3e5afcfd089855be14d780f81cdb1f08"
+}

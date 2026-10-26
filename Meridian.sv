@@ -63,6 +63,7 @@ localparam CONF_STR = {
 	"S2,DSKIMGHDF,Drive 2;",
 	"-;",
 	"FSC2,MOD,Insert cartridge;",
+	"O[8],SCHUB,Off,On;",
 	"O[6],Cartridge start,Auto,Off;",
 	"T[7],Eject cartridge;",
 	"-;",
@@ -79,6 +80,7 @@ localparam CONF_STR = {
 
 wire   [1:0] buttons;
 wire [127:0] status;
+wire schub_enabled, schub_osd_update;
 wire  [10:0] ps2_key;
 wire  [24:0] ps2_mouse;
 wire  [15:0] ps2_mouse_ext;
@@ -123,6 +125,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(3), .WIDE(1)) hps_io   // WIDE: doppelter D
 
 	.buttons(buttons),
 	.status(status),
+	.status_set(schub_osd_update),
+	.status_in({status[127:9],schub_enabled,status[7:0]}),
 	.status_menumask(16'd0),
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse),
@@ -210,6 +214,9 @@ meridian_core core
 	.clk_sd(clk_sys),
 	.reset(reset),
 	.pal(status[2]),
+	.schub_enable(status[8]),
+	.schub_enabled(schub_enabled),
+	.schub_osd_update(schub_osd_update),
 
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse),

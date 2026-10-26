@@ -1,4 +1,19 @@
-# MERIDIAN 816 for MiSTer
+# MERIDIAN 816 + SCHUB for MiSTer
+
+> **This is the SCHUB variant of MERIDIAN 816.** It is the full MERIDIAN 816
+> core – the same machine as in the
+> [original repository](https://github.com/Retro-Modern/MERIDIAN_MiSTer) –
+> plus **SCHUB**, an optional RISC-V co-processor (RV32IM at 24 MHz with
+> caches) that works next to the 65C816 and drives the MERIDIAN chips.
+> SCHUB is switched on and off in the MiSTer menu; when it is off, this core
+> behaves exactly like the original. All registers and its use are described
+> in [SCHUB.md](SCHUB.md).
+>
+> This variant is the playground for experiments: it uses more of the FPGA
+> and changes more often. The original stays the reference machine and gets
+> every fix first; this repository takes them over. The core file is
+> `releases/MERIDIAN_SCHUB_<date>.rbf`.
+
 
 *A home computer that never existed — somewhere between the Commodore 64 and
 the Amiga.*
@@ -42,7 +57,7 @@ the memory map ([KONZEPT.md](KONZEPT.md)) is written in German.
 
 ## Getting started
 
-1. Copy `releases/MERIDIAN_<date>.rbf` to `/media/fat/_Computer/` on your
+1. Copy `releases/MERIDIAN_SCHUB_<date>.rbf` to `/media/fat/_Computer/` on your
    MiSTer SD card.
 2. Optional: unzip `extras/MERIDIAN_disks.zip` into
    `/media/fat/games/MERIDIAN/`. It holds the demo disk `MERIDIAN.DSK`, two
@@ -483,6 +498,8 @@ SID JAM also plays in the browser:
 - **Simulation:** Verilator. Run `make` in `sim/`, then
   `./obj_dir/meridian_sim <seconds> <outdir> 0 <frames…>`.
   `sim/nmi_test` tests the CPU core alone (NMI during IRQ entry).
+  `sim/schub_test` tests SCHUB and the KRAN column copy on their own
+  (see [SCHUB.md](SCHUB.md)).
   `MERIDIAN_JOY="frame:value;…"` holds joystick 1 from a given frame on
   (bits as in `JOY(1)`).
 - **Your own programs:** `programme/bauen.sh name` assembles to a `.MER`.
@@ -507,6 +524,9 @@ the forum at [forum.retro-modern.net](https://forum.retro-modern.net), category
   SystemVerilog translation by **Alan Steremberg** (Apple IIgs core), with
   three fixes for MERIDIAN (interrupt handling, see
   `rtl/cpu65c816/README.md`). GPL-3.0.
+- **SCHUB CPU:** [VexRiscv](https://github.com/SpinalHDL/VexRiscv) by the
+  SpinalHDL contributors, generated Verilog in `rtl/schub/`. MIT license
+  (`rtl/schub/LICENSE.VexRiscv`).
 - **BASIC:** Microsoft BASIC M6502 1.1, © Microsoft Corporation, MIT license
   (`basic/quelle/`).
 - **MiSTer framework** (`sys/`): GPL-2.0.
