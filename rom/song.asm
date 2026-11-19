@@ -300,4 +300,12 @@ _r	rtl
 PR_PERIODEN = sp_perioden
 	.include "../taktstock/pult_rechnen.asm"
 
+;----------------------------------------------------------------------------
+; EDIT, der Editor der Werkstatt (F8), im freien Teil dieses ROM-Blocks:
+; die anderen Bloecke von Bank $FF sind voll
+
+	.as
+	.xl
+	.include "edit.asm"
+
 	.cerror * > $FFC000, "SONG: ROM-Block voll"
