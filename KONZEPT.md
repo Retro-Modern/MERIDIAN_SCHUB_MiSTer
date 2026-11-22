@@ -121,7 +121,7 @@ werden. Bei 24 MHz hat sie 41,7 ns, bei 48 MHz nur 20,8 ns.
 | `$04:0000–$FE:FFFF` | Zusatzspeicher (SDRAM), 250 Bänke = 15,6 MB (ohne `$FD`); BASIC legt SAVE ohne Namen in Bank `$10` ab; die Werkstatt nutzt `$F8–$FC` (siehe Werkstatt), ATLAS `$12–$3F` und `$ED–$F7` (siehe HORIZONT und ATLAS) |
 | `$FD:0000–$FD:FFFF` | DRAHT: 64 KB DDR3 (physisch `$3E100000`), nur für die CPU; Postfach zum Netzdienst (Etappe 12) |
 | `$40:0000–$7F:FFFF` | Modul (ROM-Abbild, bis 4 MB); steckt eins, ist der Bereich für CPU und KRAN schreibgeschützt |
-| `$FE:0000–$FE:FFFF` | Systembank: FAT-Puffer des DOS (`$FE:0000`; ohne SDRAM-Modul `$03:FE00`), Notentexte für PLAY (`$FE:1000–$FE:13FF`), Glanzpunkte von SHINE (`$FE:1400–$FE:1450`), Merkpalette (`$FE:15FF` gilt, `$FE:1600–$FE:17FF` die Farben) |
+| `$FE:0000–$FE:FFFF` | Systembank: FAT-Puffer des DOS (`$FE:0000`; ohne SDRAM-Modul `$03:FE00`), Notentexte für PLAY (`$FE:1000–$FE:13FF`), Glanzpunkte von SHINE (`$FE:1400–$FE:1450`), Merkpalette (`$FE:15FF` gilt, `$FE:1600–$FE:17FF` die Farben), SCHUB-Postfach für BASIC `SCHUB()` (`$FE:1800–$FE:1817`, siehe SCHUB.md) |
 | `$FF:0000–$FF:3FFF` | BASIC-ROM (16 KB) |
 | `$FF:4000–$FF:7FFF` | System-ROM (16 KB, bis Etappe 12 „DOS-ROM“): DOS (`JSL $FF4000`), MUSIK für PLAY (`$FF4003`, `$FF4006`), NETZ für NET (`$FF4009`), Monitor (`$FF400C`–`$FF4018`, Etappe 13), Sprites als DATA-Zeilen für die Werkstatt (`$FF401B`), Merkpalette (`$FF401E`–`$FF4027`) |
 | `$FF:8000–$FF:BFFF` | SONG-ROM (16 KB, MERIDIAN 1.0): der Abspieler von TAKTSTOCK für BASIC `SONG` – Befehl `$FF8000`, Takt `$FF8004`, Funktion `$FF8008` (`rom/song.asm`) |
