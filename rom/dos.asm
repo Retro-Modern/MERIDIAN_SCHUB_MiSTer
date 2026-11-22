@@ -158,6 +158,7 @@ ldx8	.macro adr                 ; X = Byte (16 Bit, obere Haelfte 0); Akku danac
 	jmp pal_glanz_aus           ; $FF:4027   SHINE aus, alle Farben zurueck
 	jmp schub_befehl            ; $FF:402A SCHUB adr / SCHUB 0 (rom/schub.asm)
 	jmp schub_funktion          ; $FF:402D   SCHUB(n[,a[,b[,c]]])
+	jmp brun_befehl             ; $FF:4030 BRUN "name"[,laufwerk] (rom/brun.asm)
 
 dos_befehl
 	.as
@@ -2078,6 +2079,7 @@ P_TPTR_M   = $039D
 	.include "spritedata.asm"
 	.include "palette.asm"
 	.include "schub.asm"
+	.include "brun.asm"
 
 	.cerror * > $7F00, "DOS-ROM zu gross (ab $7F00 liegt die US-Tastatur)"
 
