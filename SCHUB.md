@@ -109,8 +109,8 @@ reports an address error, `SCHUB()` ends with `?ILLEGAL QUANTITY`. After
 such a program (about 40 instructions, encoded in the script, so no RISC-V
 toolchain is needed); `programme/schubdemo.bas` uses it.
 
-The code is `rom/schub.asm` in the system ROM (entries `$FF:402A` and
-`$FF:402D`, kernel command 29 and function 10); `basic/meridian.s` only
+The code is `rom/schub.asm` in the system ROM (entries `$FF:402D` and
+`$FF:4030`, kernel command 29 and function 10); `basic/meridian.s` only
 reads the values.
 
 ## Tests

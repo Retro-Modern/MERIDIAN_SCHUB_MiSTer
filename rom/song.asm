@@ -11,6 +11,9 @@
 ;  Einspruenge (JSL, Akku 8, Index 16, DBR 0):
 ;    $FF:8000  A = 0: Song laden und spielen - den Namen hat der Kern schon
 ;              ins DOS gelegt (D_TEXT, D_TLEN, D_ENDUNG, D_LW).
+;              A = 2: der Song liegt schon bei SONG ($80:0000), nur pruefen
+;              und spielen (ein Spiel des SPIELMACHERs bringt ihn im Modul
+;              mit; ohne Laufwerk, seit 22.11.2026)
 ;              A = 0 gut, 2-9 Fehler des DOS, 13 keine TAKTSTOCK-Datei.
 ;              A = 1: SONG STOP
 ;    $FF:8004  Takt: aus dem Interrupt des Kerns, wenn Timer A gemeldet hat
@@ -181,7 +184,7 @@ lk_mb
 lk_tasten
 	.text 13, "F1 SPRITES   F2 TILES   F3 MAP", 13
 	.text "F4 SOUNDS    F5 LOOK    F6 FONT", 13
-	.text "F10 BACK     ESC STOP", 13, 0
+	.text "F8 EDIT      F10 BACK   ESC STOP", 13, 0
 
 ;----------------------------------------------------------------------------
 ; Befehl: A = 0 laden und spielen, 1 anhalten
@@ -194,7 +197,9 @@ song_befehl
 	jsr song_halt
 	lda #0
 	rtl
-+	jsr song_halt
++	pha                         ; 0 laden, 2 liegt schon da
+	jsr song_halt
+	pla
 	jsr song_laden
 	rtl
 
@@ -210,9 +215,12 @@ song_halt
 	sta PFO_IRQEN
 +	rts
 
-; A = 0 gut, sonst Fehler
+; A = 0: ueber das DOS laden, sonst liegt er schon bei SONG (dann bleibt
+; D_LAENGE bei 4 MB, die Pruefung auf "ganz gelesen" faellt also weg).
+; Zurueck: A = 0 gut, sonst Fehler
 song_laden
 	.as
+	pha
 	#akku16                     ; ganze Datei (hoechstens 4 MB)
 	lda #<>SONG
 	sta D_ADR
@@ -223,8 +231,9 @@ song_laden
 	#akku8
 	lda #`SONG
 	sta D_ADR+2
-	lda #0
-	jsl DOS
+	pla
+	bne +                       ; schon im Speicher
+	jsl DOS                     ; A = 0: laden
 	cmp #0
 	beq +
 	rts
@@ -422,5 +431,13 @@ _r	rtl
 	.include "../taktstock/spieler.asm"
 PR_PERIODEN = sp_perioden
 	.include "../taktstock/pult_rechnen.asm"
+
+;----------------------------------------------------------------------------
+; EDIT, der Editor der Werkstatt (F8), im freien Teil dieses ROM-Blocks:
+; die anderen Bloecke von Bank $FF sind voll
+
+	.as
+	.xl
+	.include "edit.asm"
 
 	.cerror * > $FFC000, "SONG: ROM-Block voll"

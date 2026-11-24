@@ -2,12 +2,14 @@
 ;  WERKSTATT - die Werkzeuge am Geraet (MERIDIAN 1.0, Schritt 3)
 ;
 ;  Wie beim Pico-8: Aus der BASIC-Eingabe oeffnen F1-F6 die Werkzeuge
-;  (SPRITES, TILES, MAP, SOUNDS, LOOK, FONT), F10 oder Esc fuehrt zurueck.
+;  (SPRITES, TILES, MAP, SOUNDS, LOOK, FONT), F8 den Editor EDIT (im
+;  SONG-ROM, rom/edit.asm), F10 oder Esc fuehrt zurueck. Ein Klick auf die
+;  Reiterleiste tut dasselbe wie die F-Taste (w_reiterwahl).
 ;  Das BASIC-Programm bleibt stehen; Schirm, Chips und geliehener Speicher
 ;  sind danach wie vorher. Oberflaeche englisch (wie BASIC).
 ;
 ;  ROM-Block Bank $FF ab $C000 (16 KB). Einsprung $FF:C000 per JSL aus dem
-;  Kern (zeile_lesen), Akku 8 / Index 16 Bit, DBR 0, D 0, A = Reiter 0-5.
+;  Kern (zeile_lesen), Akku 8 / Index 16 Bit, DBR 0, D 0, A = Reiter 0-6.
 ;
 ;  Geliehen, vorher gerettet und danach zurueck:
 ;    $02:0000-$03:2BFF  Ebene B, Bitmap 256 (die Flaeche von GRAPHIC)
@@ -103,11 +105,16 @@ F_AKTIV   = $70                 ; schwarz auf gelb
 F_STATUS  = $f0                 ; schwarz auf hellgrau
 BLINK_FREI = $0029              ; Kern: Cursor blinkt (waehrend der Werkstatt aus)
 
+; EDIT (rom/edit.asm im SONG-ROM, gleiche Bank): Sprungleiste
+ED_ZEICHNEN = $FFBFF0            ; Reiter zeichnen
+ED_TAKT    = $FFBFF3             ; ein Bild, A = Taste
+ED_VERLASSEN = $FFBFF6           ; vor dem Schliessen: C = 1 offen lassen
+
 ; Direkte Seite der Werkstatt ($A000)
 	.virtual W_RAM
-w_reiter  .byte ?               ; 0 SPRITES, 1 TILES, 2 MAP, 3 SOUNDS, 4 LOOK, 5 FONT
+w_reiter  .byte ?               ; 0 SPRITES, 1 TILES, 2 MAP, 3 SOUNDS, 4 LOOK, 5 FONT, 6 EDIT
 w_ende    .byte ?
-w_ftalt   .fill 8               ; F1-F6, F10: vorheriger Stand
+w_ftalt   .fill 8               ; F1-F6, F8, F10: vorheriger Stand
 w_mx      .word ?               ; Maus 0-319, 0-239, Tasten
 w_my      .word ?
 w_mt      .byte ?
@@ -156,7 +163,7 @@ ws_start
 _schleife
 	wai
 	jsr w_maus
-	jsr w_ftasten
+	jsr w_reiterwahl
 	#kern K_L_GETIN
 	sta w_taste
 	cmp #$03                    ; Esc: zurueck
@@ -173,7 +180,14 @@ _schleife
 	jsr (reiter_takt,x)
 +	lda w_ende
 	beq _schleife
-
+	jsr ED_VERLASSEN            ; EDIT: Programm mit Fehler - offen lassen
+	bcc +
+	stz w_ende
+	lda #6
+	sta w_reiter
+	jsr w_reiter_zeichnen
+	bra _schleife
++
 	jsr w_ebenen                ; MAP: LOTSE anhalten, bevor er zurueckstellt
 	jsr sf_alle_aus             ; SOUNDS: nichts klingt weiter
 	jsr lk_verlassen            ; LOOK: Startfarben
@@ -186,9 +200,10 @@ _schleife
 	rtl
 
 reiter_takt
-	.word <>sp_takt, <>sp_takt, <>ka_takt, <>kl_takt, <>lk_takt, <>sp_takt
+	.word <>sp_takt, <>sp_takt, <>ka_takt, <>kl_takt, <>lk_takt, <>sp_takt, <>ED_TAKT
 reiter_inhalt
 	.word <>sp_zeichnen, <>ki_zeichnen, <>ka_zeichnen, <>kl_zeichnen, <>lk_zeichnen, <>zs_zeichnen
+	.word <>ED_ZEICHNEN
 w_nichts
 	rts
 
@@ -414,7 +429,7 @@ w_reiter_zeichnen
 	inx
 	cpx #160
 	bne -
-	stz w_t0                    ; die sechs Reiter
+	stz w_t0                    ; die sieben Reiter
 _reiter
 	#akku16
 	lda w_t0
@@ -438,15 +453,15 @@ _reiter
 +	jsr w_text
 	inc w_t0
 	lda w_t0
-	cmp #6
+	cmp #7
 	bne _reiter
-	#text 0, 58, F_REITER, t_zurueck
+	#text 0, ZURUECK_SPALTE, F_REITER, t_zurueck
 	jmp w_inhalt
 
 reiter_spalte
-	.word 1 * 2, 11 * 2, 19 * 2, 25 * 2, 34 * 2, 41 * 2
+	.word 1 * 2, 11 * 2, 19 * 2, 25 * 2, 34 * 2, 41 * 2, 48 * 2
 reiter_text
-	.word <>t_r0, <>t_r1, <>t_r2, <>t_r3, <>t_r4, <>t_r5
+	.word <>t_r0, <>t_r1, <>t_r2, <>t_r3, <>t_r4, <>t_r5, <>t_r6
 reiter_namen
 t_r0	.null " SPRITES "
 t_r1	.null " TILES "
@@ -454,7 +469,9 @@ t_r2	.null " MAP "
 t_r3	.null " SOUNDS "
 t_r4	.null " LOOK "
 t_r5	.null " FONT "
+t_r6	.null " EDIT "
 t_zurueck .null "F10/Esc: back to BASIC"
+ZURUECK_SPALTE = 58             ; ab hier bis zum Zeilenende
 
 ; Inhalt des Reiters: Zeilen 1-29 und die Bitmap leeren, dann zeichnen
 w_inhalt
@@ -491,15 +508,70 @@ w_inhalt
 	#akku8
 	jmp (reiter_inhalt,x)
 
-w_bald                          ; noch nicht gebaut
+; F-Tasten und Maus: ein Linksklick auf einen Namen der Reiterleiste waehlt
+; den Reiter wie seine F-Taste, einer auf "back to BASIC" fuehrt zurueck
+w_reiterwahl
 	.as
-	#text 3, 2, F_TITEL, t_bald
-	#text 5, 2, F_GRUND, t_bald2
-	#text 29, 0, F_STATUS, t_status
+	jsr w_ftasten
+	lda w_mtalt                 ; links gerade gedrueckt ...
+	eor #$ff
+	and w_mt
+	lsr a
+	bcc _fertig
+	lda w_my                    ; ... in Zeile 0?
+	cmp #8
+	bcs _fertig
+	lda w_mx+1                  ; Spalte * 2 (80 Spalten auf 320 Punkten), so
+	lsr a                       ; wie reiter_spalte sie fuehrt
+	lda w_mx
+	ror a
+	and #$fe
+	cmp #ZURUECK_SPALTE * 2
+	bcs _zurueck
+	tay
+	ldx #7 * 2
+-	dex
+	dex
+	bmi _fertig                 ; links vom ersten Namen
+	tya
+	sec
+	sbc @l reiter_spalte,x
+	bcc -
+	cmp @l reiter_breite,x
+	bcs _fertig                 ; in der Luecke hinter dem Namen
+	txa
+	lsr a
+	sta w_reiter
+	jsr w_reiter_zeichnen
+	bra +
+_zurueck
+	inc w_ende
++
+-	wai                         ; die Taste gehoert der Leiste, bis sie los
+	jsr w_maus                  ; ist: wer sie haelt und in den Reiter zieht,
+	lda w_mt                    ; malte dort sonst ohne Klick (und ohne den
+	lsr a                       ; Stand fuer U) los, und wer zurueckgeht,
+	bcs -                       ; kaeme mit gedrueckter Taste beim Aufrufer an
+_fertig
 	rts
-t_bald	.null "MERIDIAN WORKSHOP"
-t_bald2	.null "F1 SPRITES  F2 TILES  F3 MAP  F4 SOUNDS  F5 LOOK  F6 FONT"
-t_status .null " MERIDIAN 1.0 workshop - this tab is being built                                "
+
+; Breite der Namen in der Leiste * 2, aus den Texten selbst
+reiter_breite
+	.word (t_r1 - t_r0 - 1) * 2, (t_r2 - t_r1 - 1) * 2, (t_r3 - t_r2 - 1) * 2
+	.word (t_r4 - t_r3 - 1) * 2, (t_r5 - t_r4 - 1) * 2, (t_r6 - t_r5 - 1) * 2
+	.word (t_zurueck - t_r6 - 1) * 2
+
+; Von w_reiterwahl bis hierher stand frueher die Platzhalterseite fuer Reiter,
+; die es noch nicht gab (w_bald, 215 Byte, zuletzt unbenutzt). Den Rest des
+; Platzes fuellt ws_karte.asm ueber den Abschnitt w_luecke: am Ende des ROM
+; war dafuer zu wenig frei. Aufgefuellt wird auf genau 215 Byte - so bleibt
+; alles bis ws_karte.asm an seiner Adresse, auch sd_fehlertexte, das EDIT im
+; SONG-ROM ueber ws_sym.inc kennt (dessen ROM muss dann nicht mit erneuert
+; werden).
+	.dsection w_luecke
+	.cerror * - w_reiterwahl > W_LUECKE, "Werkstatt: Luecke (w_bald) voll"
+	.fill W_LUECKE - (* - w_reiterwahl), $ff
+W_LUECKE = 215
 
 ; A (16 Bit) = Text, Y = seine Bank: Zeiger setzen; zurueck mit Akku 8
 w_text_xy
@@ -551,7 +623,7 @@ w_ftasten_merken
 -	jsr w_ftaste
 	sta w_ftalt,y
 	iny
-	cpy #7
+	cpy #8
 	bne -
 	rts
 
@@ -566,7 +638,7 @@ w_ftaste                        ; A = Stand der F-Taste Y (benutzt X)
 	lda @l TASTEN_AN,x
 	rts
 
-; Neu gedrueckt: F1-F6 waehlen den Reiter, F10 fuehrt zurueck
+; Neu gedrueckt: F1-F6 und F8 waehlen den Reiter, F10 fuehrt zurueck
 w_ftasten
 	.as
 	ldy #0
@@ -576,7 +648,7 @@ w_ftasten
 	sta w_ftalt,y
 	cmp #0
 	beq _weiter
-	cpy #6
+	cpy #7
 	bne +
 	inc w_ende                  ; F10
 	bra _weiter
@@ -587,11 +659,11 @@ w_ftasten
 	ply
 _weiter
 	iny
-	cpy #7
+	cpy #8
 	bne -
 	rts
 ftasten
-	.byte $05, $06, $04, $0c, $03, $0b, $09  ; F1-F6, F10
+	.byte $05, $06, $04, $0c, $03, $0b, $0a, $09  ; F1-F6, F8, F10
 
 ; Zahl A (0-255) dezimal nach SCHIRM+X: 3, 2 oder 1 Stelle(n)
 w_zahl3

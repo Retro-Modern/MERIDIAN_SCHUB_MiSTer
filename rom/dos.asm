@@ -156,9 +156,16 @@ ldx8	.macro adr                 ; X = Byte (16 Bit, obere Haelfte 0); Akku danac
 	jmp pal_gemerkt             ; $FF:4021   A = Farbe -> X = gemerkter Wert
 	jmp pal_zurueck             ; $FF:4024   A = Farbe wie gemerkt nach PINSEL
 	jmp pal_glanz_aus           ; $FF:4027   SHINE aus, alle Farben zurueck
-	jmp schub_befehl            ; $FF:402A SCHUB adr / SCHUB 0 (rom/schub.asm)
-	jmp schub_funktion          ; $FF:402D   SCHUB(n[,a[,b[,c]]])
-	jmp brun_befehl             ; $FF:4030 BRUN "name"[,laufwerk] (rom/brun.asm)
+ws_rollen_ein
+	jmp ws_rollen               ; $FF:402A Werkstatt, MAP: Karte rollen, Pfeile und Mausrand (rom/ws_rollen.asm)
+	.cerror ws_rollen_ein != $402A, "ws_rollen: die Werkstatt ruft $FF:402A (ROLL_RUF in ws_karte.asm)"
+schub_ein
+	jmp schub_befehl            ; $FF:402D SCHUB adr / SCHUB 0 (rom/schub.asm)
+	jmp schub_funktion          ; $FF:4030   SCHUB(n[,a[,b[,c]]])
+brun_ein
+	jmp brun_befehl             ; $FF:4033 BRUN "name"[,laufwerk] (rom/brun.asm)
+	.cerror schub_ein != $402D, "SCHUB: der Kern ruft $FF:402D (SCHUB_L_BEF in kern.asm)"
+	.cerror brun_ein != $4033, "BRUN: BASIC ruft $FF:4033 (SYS_BRUN in basic/meridian.s)"
 
 dos_befehl
 	.as
@@ -2078,6 +2085,7 @@ P_TPTR_M   = $039D
 	.include "monitor.asm"
 	.include "spritedata.asm"
 	.include "palette.asm"
+	.include "ws_rollen.asm"
 	.include "schub.asm"
 	.include "brun.asm"
 

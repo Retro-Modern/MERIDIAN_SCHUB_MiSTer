@@ -14,7 +14,7 @@
 ;  Danach wie beim Fernstart: nur der Bildende-Interrupt, PFORTE still,
 ;  Anzeige zurueckgesetzt (Text, ohne zu loeschen; ORGEL still).
 ;
-;  Einsprung $FF:4030 (JSL) direkt aus BASIC, im Emulationsmodus mit
+;  Einsprung $FF:4033 (JSL) direkt aus BASIC, im Emulationsmodus mit
 ;  Datenbank 1: Name ueber P_TLEN_M / P_TPTR_M (Text in Bank 1), Laufwerk
 ;  als Wert 0 (P_ANZ_M, P_WERT_M; ohne: STD_LW).
 ;  Zurueck (RTL, wieder im Emulationsmodus, Register wie vorher):

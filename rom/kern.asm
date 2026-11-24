@@ -92,8 +92,8 @@ PAL_BEFEHL = $FF401E            ; System-ROM (rom/palette.asm, 23.10.2026): PALE
 PAL_GEMERKT = $FF4021           ;   gemerkter Wert einer Farbe (X), Farbe zurueck,
 PAL_ZURUECK = $FF4024           ;   SHINE aus mit allen Farben
 PAL_GLANZ_AUS = $FF4027
-SCHUB_L_BEF = $FF402A           ; System-ROM (rom/schub.asm): SCHUB adr / SCHUB 0,
-SCHUB_L_FKT = $FF402D           ;   SCHUB(n[,a[,b[,c]]])
+SCHUB_L_BEF = $FF402D           ; System-ROM (rom/schub.asm): SCHUB adr / SCHUB 0,
+SCHUB_L_FKT = $FF4030           ;   SCHUB(n[,a[,b[,c]]])
 WS_BASIC   = $FFC00C            ;   A = 0 MAP, 1 TILE, 2 TILE(), 3 Direktmodus, 4 Kaltstart
 KA_ZUSTAND = $F84300            ;   BASIC MAP: welche Karte gerade zu sehen ist
 SFX_AN     = $02F4              ;   SFX: Bit v = Stimme v spielt einen Klang ($02F5-$02FF Abspieler)
@@ -1740,7 +1740,7 @@ _nein
 	lda #0
 	rts
 
-; F1-F6 gedrueckt? Dann die Werkstatt mit diesem Reiter (sie stellt beim
+; F1-F6 oder F8 (EDIT) gedrueckt? Dann die Werkstatt mit diesem Reiter (sie stellt beim
 ; Verlassen Schirm, Chips und Speicher wieder her). Die Tasten kommen roh aus
 ; der Tastentabelle - GETIN liefert keine F-Tasten, Programme sehen nichts.
 werkstatt_pruefen
@@ -1767,11 +1767,11 @@ werkstatt_pruefen
 	lda @l TASTEN_AN,x
 	bne +
 	iny
-	cpy #6
+	cpy #7
 	bne -
 	rts
 +	jsr cursor_aus
-	tya                         ; Reiter 0-5
+	tya                         ; Reiter 0-6
 	jsl WERKSTATT
 _nein
 	rts
@@ -1784,7 +1784,7 @@ zusatz_da                       ; C = 1: Zusatzspeicher bis Bank $FC (SDRAM-Modu
 	#akku8
 	rts
 ws_tasten
-	.byte $05, $06, $04, $0c, $03, $0b      ; F1-F6 (Scancodes)
+	.byte $05, $06, $04, $0c, $03, $0b, $0a ; F1-F6, F8 (Scancodes)
 
 ; Eine Zeile mit dem Bildschirmeditor holen und nach BASICs Eingabepuffer
 ; legen (mit 0 abgeschlossen). Wie beim C64: In der Zeile, in der die
@@ -2377,7 +2377,8 @@ l_dostext
 ;  - Zeichen wie auf den MEGA65-Tasten: Umschalt+3 = #, +7 = ', +0 = {,
 ;    +: = [, +; = ], +, = <, +. = >, +/ = ?, +Pfeil links = `, = ungeschaltet, Pfund = #
 ;  - MEGA-Taste (E0 1F) als Umschalter, Bit 3 von umsch: | { } ~ \ `
-;  - ALT: ä ö ü ß, mit Umschalt Ä Ö Ü
+;  - ALT: ä ö ü ß, mit Umschalt Ä Ö Ü; ebenso mit MEGA (am U64 die C=-Taste,
+;    die MERIDIAN-Taste), weil die C64-Tastatur kein ALT hat
 ;  - Umschalt + F1/F3/.../F13 = F2/F4/.../F14 (auch fuer KEY() und die
 ;    Werkstatt); Umschalt + INST/DEL = Einfuegen, Umschalt + CRSR rechts/
 ;    runter = links/hoch
@@ -2504,8 +2505,7 @@ m65_taste                       ; MEGA: deren Liste, sonst Y, sonst die Tabelle
 	ldy #m65_l_mega-m65_listen
 	jsr m65_suche
 	bcs _ende
-	lda #0
-	rts
+	bra m65_alt_liste           ; sonst wie ALT: Umlaute (C64-Tastatur am U64 ohne ALT)
 _liste
 	jsr m65_suche
 	bcs _ende
@@ -2525,10 +2525,10 @@ m65_alt
 	.xl
 	lda PFO_LAYOUT
 	and #$06
-	bne _m65
+	bne m65_alt_liste
 	lda PFO_LAYOUT              ; nicht MEGA65: wie bisher
 	rts
-_m65
+m65_alt_liste                   ; auch fuer MEGA + Taste (aus m65_taste)
 	ldy #m65_l_alt-m65_listen
 	lda umsch
 	lsr a
@@ -2569,6 +2569,7 @@ _weiter
 	rts
 
 	.include "tastatur_m65.inc"
+	.cerror * > $FF80, "Kern-ROM voll: Code ragt in die Sprungtabelle ($FF80)"
 
 ;============================================================================
 ; Sprungtabelle (feste Adressen fuer Programme)

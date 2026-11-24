@@ -611,7 +611,21 @@ M_PALETTE                       ; PALETTE n,r,g,b (Anteile 0-15): der Kern setzt
 M_GETNUM
 	jsr FRMNUM
 	jsr M_ADR24
-	jmp COMBYT
+M_COMBYT                        ; Komma und Wert, LZ bleibt erhalten:
+	lda LZ+2                    ; PEEK und jede MERIDIAN-Funktion im Wert
+	pha                         ; (MOUSE, JOY, CLOCK, SONG() ...) setzen LZ.
+	lda LZ+1                    ; Ohne das schrieb POKE A,PEEK(B)+1 nach B
+	pha                         ; (gefunden 22.11.2026, SPIELMACHER 6.9).
+	lda LZ
+	pha
+	jsr COMBYT                  ; Wert -> X
+	pla
+	sta LZ
+	pla
+	sta LZ+1
+	pla
+	sta LZ+2
+	jmp CHRGOT                  ; wie COMBYT: A, Z und C vom naechsten Zeichen
 
 M_ADR24                         ; ohne Vorzeichen
 	lda FACSGN
@@ -1978,7 +1992,7 @@ _zahl
 ; starten, danach weiter im BASIC. Die Arbeit macht das System-ROM
 ; (rom/brun.asm): Es rettet Bank 0 ab $2000 samt direkter Seite und Seite 3
 ; und holt sie danach zurueck - das Programm darf den BASIC-Code ueberschreiben.
-SYS_BRUN = $FF4030
+SYS_BRUN = $FF4033
 M_BRUN
 	ldx #1
 	stx M_REG

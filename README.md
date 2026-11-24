@@ -184,7 +184,7 @@ if there is one – also when plugged in later – otherwise on the SD card. To 
 
 1. Copy `tools/draht.py` and `tools/disk.py` to `/media/fat/linux/meridian/`.
    For the network parts of the [HORIZONT desktop](#the-horizont-desktop)
-   (RADIO, SID JAM, WEATHER, NEWS, ATLAS's browser page, TAKTSTOCK's net jam) take the full
+   (RADIO, SID JAM, WEATHER, NEWS, KATALOG, ATLAS's browser page, TAKTSTOCK's net jam) take the full
    network service package from
    [retro-modern.net/en/downloads.html](https://retro-modern.net/en/downloads.html)
    instead – unzip it into the root of the SD card.
@@ -323,18 +323,21 @@ RAM from `$80:0000`; `KONZEPT.md` has the details.
 ## The workshop
 
 Like on the Pico-8, a whole game can be made on the machine itself. While
-BASIC waits for a command, **F1–F6** open the workshop – F10 or Esc go back,
+BASIC waits for a command, **F1–F6** open the workshop and **F8** its text
+editor – F10 or Esc go back,
 and your program and screen are exactly as you left them. Everything is
 driven with the mouse and a few keys; the help lines on each tab list them.
+A click on a name in the tab bar switches tabs like its F key.
 
 | Key | Tab | |
 |---|---|---|
 | F1 | SPRITES | the 128 sprite patterns (16×16): pen, fill, flip, rotate, shift, copy, undo; preview with ink outline; **S** saves the patterns with the look as a file, **L** loads them, **B** writes them as `DATA` lines into the program |
 | F2 | TILES | 256 tiles (8×8) in the same painter, previewed side by side to check that they tile. Tile 0 stays empty – empty maps are made of it |
-| F3 | MAP | two maps of 64×32 tiles. The upper part of the screen shows the maps as PINSEL draws them (the copper switches both layers to tile mode there), the lower part the tile picker |
+| F3 | MAP | two maps of 64×32 tiles. The upper part of the screen shows the maps as PINSEL draws them (the copper switches both layers to tile mode there), the lower part the tile picker. The view scrolls with the arrow keys, or when the pointer rests at its edge (top: the tab bar, bottom: the line below the map). **1**/**2** pick the map you paint on – its name stands above the tile picker –, **Del** empties the field under the pointer |
 | F4 | SOUNDS | 64 short sounds: paint pitch and volume over 32 steps, eight waveforms, eight effects (slide, vibrato, drop, fades, arpeggios), speed and loop |
 | F5 | LOOK | your game's look: all 256 colours, which colours glow and how strongly, the ink colour and offset |
 | F6 | FONT | your own character set, in the sprite painter |
+| F8 | EDIT | a full-screen text editor for the BASIC program in memory and for text files – see [below](#edit-the-text-editor) |
 
 `SAVE "GAME"` stores the program together with everything in the workshop
 that is not empty, `LOAD "GAME"` brings it all back – one file per game.
@@ -366,6 +369,37 @@ Maps are only shown while a program runs; back at the prompt you see your
 text again. The workshop ROM lives at `$FF:C000`, its data in expansion RAM
 banks `$F8–$FC`; `KONZEPT.md` (section *Werkstatt*) has the memory map, the
 file format and the details.
+
+### EDIT, the text editor
+
+**F8** opens the BASIC program in memory as plain text: scroll through it,
+change any line, insert and delete lines anywhere. When you leave the
+workshop (F10 or Esc), the changed text replaces the program, as if every
+line had been typed in, followed by `CLR`. Lines need their numbers, and
+the numbers must go up; if a line is wrong, the editor stays open, puts the
+cursor on it and says why. Keywords may be typed in small letters.
+
+It also edits text files on drives 1–3 (drive 3 is the folder
+`games/MERIDIAN/files`, so a file saved there can be opened on a PC as
+well). Lines end with LF; CR LF and CR are read too. A BASIC program file
+opened this way (e.g. `GLOWMINE.BAS`) is shown as text and saved as a
+program again. A program file that also holds workshop data can be viewed;
+to change it, `LOAD` it in BASIC and press F8.
+
+| Key | |
+|---|---|
+| cursor keys, Home, End, PgUp, PgDn | move; Shift+Home goes to the top, Ctrl+End to the bottom; a mouse click places the cursor |
+| Return, Backspace, Del, Tab | split, join and delete; Tab inserts spaces |
+| Ctrl+X, Ctrl+C, Ctrl+V | cut the line (cuts in a row collect), copy it, paste in front of the cursor's line |
+| Ctrl+F, Ctrl+G, Ctrl+L | find (case does not matter), find again, go to a line (in BASIC its line number) |
+| Ctrl+O, Ctrl+S, Ctrl+N | open, save (Tab picks the drive), new empty text |
+| Ctrl+B, Ctrl+P | show the BASIC program in memory; use this text as the program |
+
+The text can be up to 65,279 bytes long. The editor sits in the free part
+of the SONG ROM (`rom/edit.asm`, jump table at `$FF:BFF0`); its text and
+state live in expansion RAM banks `$E4–$E6` and stay there between visits.
+
+EDIT was contributed by James Gill ([jnngill](https://github.com/jnngill)).
 
 ![The workshop: MAP](Screens/Workshop_MAP.png)
 
@@ -465,6 +499,29 @@ the lamp's light cone moves with the miner (GLANZ), the status bar is text
 mode over the tile map in one frame (LOTSE), the echo sounder runs through
 the ORGEL's filter and echo, two TAKTSTOCK songs play from expansion RAM.
 
+## Games without programming: SPIELMACHER
+
+SPIELMACHER is a game construction kit on a cartridge. You paint sprites,
+tiles and maps in the workshop and say what happens with objects and rules:
+*joystick right → move the player*, *player touches a coin → remove it, add
+a point*. A game has up to 16 objects, 80 rules and 15 rooms; there are
+walls, platforms and gravity, enemies that patrol or chase, counters,
+switches, messages, scrolling maps, a title screen and music. Four templates
+(a platformer, a collecting game, a shooter and a game with several rooms)
+give you something playable to start from.
+
+The finished game is written as its own cartridge, `NAME.MOD`, that runs
+without SPIELMACHER. The part of it that comes from us may be passed on and
+sold with your game, no strings attached. From inside SPIELMACHER a game
+can also be sent to the KATALOG on retro-modern.net.
+
+SPIELMACHER is free. It needs the SDRAM module and the core from release
+20261124 on; exporting and uploading use the network service (2.5 or newer).
+
+**Download and manual:**
+[retro-modern.net/en/meridian.html#spielmacher](https://retro-modern.net/en/meridian.html#spielmacher)
+and [retro-modern.net/en/spielmacher.html](https://retro-modern.net/en/spielmacher.html).
+
 ## The HORIZONT desktop
 
 HORIZONT is a graphical desktop for the MERIDIAN on a cartridge: a menu bar,
@@ -492,6 +549,7 @@ playing in the background.
 | SID JAM | a SID jukebox – alone, or together with everyone listening |
 | WEATHER | the weather now and for five days, with a place search; the temperature also shows in the menu bar |
 | NEWS | news from tagesschau.de, heise online and the Retro-Modern forum, with the full article |
+| KATALOG | software from the [KATALOG](https://retro-modern.net/en/katalog.html) on retro-modern.net – games, programs, cartridges, music and tools; LOAD puts an entry on drive 3 (since 2.5) |
 | SETTINGS | background (sunset, starry night, a colour or your own BMP), pointer speed and left-handed buttons, screen saver (star flight or test card), 12 or 24 hour clock |
 | MINES | Minesweeper in three sizes up to 30 × 16 fields |
 | SOLITAIRE | Klondike solitaire with drag and drop |

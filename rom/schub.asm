@@ -18,9 +18,9 @@
 ;  schreibt das Ergebnis und dann den Zustand 2. BASIC setzt ihn auf 0.
 ;
 ;  Einspruenge (JSL, Akku 8 Bit, Indexregister 16 Bit, Datenbank 0):
-;   $FF:402A  schub_befehl   Kern-Befehl 29: Wert in P_WERT_M;
+;   $FF:402D  schub_befehl   Kern-Befehl 29: Wert in P_WERT_M;
 ;                            A = 0 gut, 1 falscher Wert / kein SCHUB
-;   $FF:402D  schub_funktion Kern-Funktion 10: Werte in P_WERT_M, Ergebnis
+;   $FF:4030  schub_funktion Kern-Funktion 10: Werte in P_WERT_M, Ergebnis
 ;                            (32 Bit) in P_WERT_M+0..3; A = 0 gut,
 ;                            1 SCHUB laeuft nicht / Adressfehler, 3 Esc
 ;============================================================================
