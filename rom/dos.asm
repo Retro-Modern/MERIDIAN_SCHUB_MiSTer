@@ -2079,6 +2079,7 @@ P_TPTR_M   = $039D
 	.include "spritedata.asm"
 	.include "palette.asm"
 	.include "ws_rollen.asm"
+	.include "ed_sort.asm"
 
 	.cerror * > $7F00, "DOS-ROM zu gross (ab $7F00 liegt die US-Tastatur)"
 

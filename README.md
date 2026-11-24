@@ -375,9 +375,11 @@ file format and the details.
 **F8** opens the BASIC program in memory as plain text: scroll through it,
 change any line, insert and delete lines anywhere. When you leave the
 workshop (F10 or Esc), the changed text replaces the program, as if every
-line had been typed in, followed by `CLR`. Lines need their numbers, and
-the numbers must go up; if a line is wrong, the editor stays open, puts the
-cursor on it and says why. Keywords may be typed in small letters.
+line had been typed in, followed by `CLR`. Lines need their numbers; they
+may come in any order and are put in order, and a line replaces an earlier
+one with the same number, as when typing them. If a line is wrong, the
+editor stays open, puts the cursor on it and says why. Keywords may be
+typed in small letters.
 
 It also edits text files on drives 1–3 (drive 3 is the folder
 `games/MERIDIAN/files`, so a file saved there can be opened on a PC as
