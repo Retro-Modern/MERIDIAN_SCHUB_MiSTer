@@ -292,6 +292,7 @@ M_RESLST
 	.shift "TILE"                ;   (Befehl und Funktion)
 	.shift "SFX"                 ;   Klaenge
 	.shift "LOOK"                ;   Look und Zeichensatz der Werkstatt
+	.shift "BRUN"                ; Programm (MER-Datei) laden und starten
 	.byte 0
 M_RESENDE
 
@@ -309,6 +310,7 @@ M_STMDSP
 	.word M_RENUMBER-1, M_SONG-1
 	.word M_SHINE-1, M_GLOW-1, M_INK-1
 	.word M_MAP-1, M_TILE-1, M_SFX-1, M_LOOK-1
+	.word M_BRUN-1
 M_ANZAHL = (* - M_STMDSP) / 2
 M_ERSTE  = 24                   ; Token-Index von MOUSE, der ersten Funktion
 M_FANZ   = 7                    ; MOUSE JOY KEY HIT CLOCK NET$ NET
@@ -324,7 +326,8 @@ RUNTK    = GOTOTK+1
 STOPTK   = REMTK+1              ; Microsofts Liste: REM STOP
 SONGTK   = GOTK+1+37            ; MERIDIAN 1.0
 TILETK   = GOTK+1+42
-	.cerror M_ANZAHL != 45, "Liste geaendert: ELSE muss Eintrag 31 bleiben, SONG 37, TILE 42"
+BRUNTK   = GOTK+1+45
+	.cerror M_ANZAHL != 46, "Liste geaendert: ELSE muss Eintrag 31 bleiben, SONG 37, TILE 42, BRUN 45"
 
 	.cerror GOTK+M_ANZAHL > $ff, "zu viele Token"
 
@@ -1912,6 +1915,26 @@ M_TILEFN                        ; mitten in einem Ausdruck: die Werte eines
 	cpx #10
 	bne -
 	jmp M_FERGEBNIS
+
+; BRUN "name"[,laufwerk]: eine MER-Datei laden und an ihrer Ladeadresse
+; starten, danach weiter im BASIC. Die Arbeit macht das System-ROM
+; (rom/brun.asm): Es rettet Bank 0 ab $2000 samt direkter Seite und Seite 3
+; und holt sie danach zurueck - das Programm darf den BASIC-Code ueberschreiben.
+SYS_BRUN = $FF402D
+M_BRUN
+	ldx #1
+	stx M_REG
+	jsr M_NAME
+	jsl SYS_BRUN                ; A = 0 gut, 1 kein Zusatzspeicher, 2-9 DOS
+	cmp #0
+	beq _gut
+	cmp #2
+	bcc _wert
+	jmp M_DOSFEHLER
+_wert
+	jmp FCERR
+_gut
+	rts
 
 ERW_ENDE
 

@@ -18,7 +18,7 @@ programs in `programme/` (and on the demo disk) are longer examples.
 - [Input](#input) – `KEY()` `JOY()` `MOUSE` `MOUSE()` `GET`
 - [Time](#time) – `PAUSE` `CLOCK()`
 - [Program flow](#program-flow) – `IF … ELSE` `WHILE … WEND` `REPEAT … UNTIL` `RENUMBER`
-- [Drives and files](#drives-and-files) – `DRIVE` `DIR` `SAVE` `LOAD` `BSAVE` `BLOAD` `SCRATCH` `HEADER`
+- [Drives and files](#drives-and-files) – `DRIVE` `DIR` `SAVE` `LOAD` `BSAVE` `BLOAD` `BRUN` `SCRATCH` `HEADER`
 - [Network](#network) – `NET` `NET()` `NET$()`
 - [Memory and machine code](#memory-and-machine-code) – `PEEK` `POKE` `WAIT` `FRE` `USR` `MONITOR`
 - [Error messages](#error-messages)
@@ -595,6 +595,27 @@ take 24-bit addresses. Saving and loading the whole bitmap:
 50 BLOAD "PICTURE":PAUSE 120:GRAPHIC 0
 ```
 
+### BRUN "name"[,drive]
+
+Loads a program file (`NAME.MER`) to the load address in its header and
+starts it there (JSL; the program ends with RTL), then carries on in BASIC –
+at `READY.`, or with the next statement when `BRUN` is in a program.
+The program may use all of bank 0 from `$2000`, even over BASIC's own
+code: `BRUN` keeps bank 0 `$2000–$BFFF`, BASIC's direct page and page 3 in
+bank `$E7` of the expansion memory while it runs and puts them back
+afterwards. Then, as after a remote start, only the frame interrupt is on,
+PFORTE's timers are off and the display is reset to text (without clearing
+it); the program itself is not in memory any more. It needs the SDRAM module.
+Programs from MERIDIAN Pascal (the PC compiler, or `F7` in the PASCAL
+cartridge) work this way, for the 65C816 and for SCHUB.
+
+```basic
+BRUN "PRIMES"
+BRUN "SNAKE",3
+10 PRINT "LOADING ..."
+20 BRUN "GAME":PRINT "BACK IN BASIC"
+```
+
 ### SCRATCH "name"[,drive]
 
 Deletes a file (ending `.BAS` when none is given): `SCRATCH
@@ -705,6 +726,7 @@ Besides Microsoft's messages, MERIDIAN BASIC knows: `?FILE NOT FOUND`,
 |---|---|---|---|
 | `BLIT` | copy memory | `MODE` | 40 or 80 columns |
 | `BLOAD` | load a file into memory | `MONITOR` | machine-code monitor |
+| `BRUN` | load and start a program file | | |
 | `BSAVE` | save memory as a file | `MOUSE` / `MOUSE()` | pointer on/off / position, buttons |
 | `CLOCK()` | clock and frame counter | `NET` / `NET()` / `NET$()` | network |
 | `CLS` | clear the text screen | `PALETTE` | mix a colour |
