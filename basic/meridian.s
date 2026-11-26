@@ -293,6 +293,7 @@ M_RESLST
 	.shift "SFX"                 ;   Klaenge
 	.shift "LOOK"                ;   Look und Zeichensatz der Werkstatt
 	.shift "BRUN"                ; Programm (MER-Datei) laden und starten
+	.shift "SCHUB"               ; SCHUB-Kern: RISC-V starten und rufen (Befehl und Funktion)
 	.byte 0
 M_RESENDE
 
@@ -311,6 +312,7 @@ M_STMDSP
 	.word M_SHINE-1, M_GLOW-1, M_INK-1
 	.word M_MAP-1, M_TILE-1, M_SFX-1, M_LOOK-1
 	.word M_BRUN-1
+	.word M_SCHUB-1
 M_ANZAHL = (* - M_STMDSP) / 2
 M_ERSTE  = 24                   ; Token-Index von MOUSE, der ersten Funktion
 M_FANZ   = 7                    ; MOUSE JOY KEY HIT CLOCK NET$ NET
@@ -327,7 +329,8 @@ STOPTK   = REMTK+1              ; Microsofts Liste: REM STOP
 SONGTK   = GOTK+1+37            ; MERIDIAN 1.0
 TILETK   = GOTK+1+42
 BRUNTK   = GOTK+1+45
-	.cerror M_ANZAHL != 46, "Liste geaendert: ELSE muss Eintrag 31 bleiben, SONG 37, TILE 42, BRUN 45"
+SCHUBTK  = GOTK+1+46
+	.cerror M_ANZAHL != 47, "Liste geaendert: ELSE muss Eintrag 31 bleiben, SONG 37, TILE 42, BRUN 45, SCHUB 46"
 
 	.cerror GOTK+M_ANZAHL > $ff, "zu viele Token"
 
@@ -720,6 +723,9 @@ M_FUNKTION
 +	cmp #TILETK-GOTK-1-M_ERSTE  ; TILE(l,x,y): mehrere Werte
 	bne +
 	jmp M_TILEFN
++	cmp #SCHUBTK-GOTK-1-M_ERSTE  ; SCHUB(n[,a[,b[,c]]])
+	bne +
+	jmp M_SCHUBFN
 +	cmp #M_FANZ
 	bcc +
 	jmp SNERR                   ; GO oder ein Befehl
@@ -1935,6 +1941,72 @@ _wert
 	jmp FCERR
 _gut
 	rts
+
+; SCHUB-Kern: SCHUB adr startet das RISC-V-Programm ab adr, SCHUB 0 haelt es
+; an (Kern 29); SCHUB(n[,a[,b[,c]]]) ruft seine Funktion n ueber das
+; Postfach und gibt 32 Bit mit Vorzeichen zurueck, SCHUB(-1) den Status
+; (Funktion 10; die Arbeit macht rom/schub.asm im System-ROM)
+M_SCHUB
+	ldx #1
+	ldy #29
+	jmp M_ALLG
+M_SCHUBFN
+	ldx #12                     ; wie M_TILEFN: P_ANZ und 4 Werte retten
+-	lda P_ANZ,x
+	pha
+	dex
+	bpl -
+	lda M_REG
+	pha
+	lda M_WELLE
+	pha
+	jsr CHRGET
+	jsr CHKOPN
+	lda #4
+	sta M_REG
+	jsr M_ARGS
+	jsr CHKCLS
+	lda #10
+	jsr K_FUNKTION
+	tay                         ; 0 gut, 1 falsch, 3 Esc
+	lda P_WERT+3                ; Ergebnis (32 Bit) -> FAC
+	sta FACHO
+	lda P_WERT+2
+	sta FACMOH
+	lda P_WERT+1
+	sta FACMO
+	lda P_WERT
+	sta FACLO
+	pla
+	sta M_WELLE
+	pla
+	sta M_REG
+	ldx #0
+-	pla
+	sta P_ANZ,x
+	inx
+	cpx #13
+	bne -
+	tya
+	beq _zahl
+	cmp #3
+	beq _esc
+	jmp FCERR
+_esc                            ; Esc wie STOP, aber mitten im Ausdruck:
+	jsr STKINI                  ; Stapel frisch, kein CONT
+	ldx #0
+	stx CNTWFL
+	lda #<BRKTXT
+	ldy #>BRKTXT
+	jmp ERRFIN
+_zahl
+	sta VALTYP                  ; A = 0
+	ldx #$a0                    ; 2^32
+	lda FACHO
+	eor #$ff
+	rol a                       ; Carry: positiv
+	lda #0
+	jmp FLOATB
 
 ERW_ENDE
 

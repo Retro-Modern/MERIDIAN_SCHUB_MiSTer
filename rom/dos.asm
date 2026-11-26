@@ -162,6 +162,10 @@ ws_rollen_ein
 brun_ein
 	jmp brun_befehl             ; $FF:402D BRUN "name"[,laufwerk] (rom/brun.asm)
 	.cerror brun_ein != $402D, "BRUN: BASIC ruft $FF:402D (SYS_BRUN in basic/meridian.s)"
+schub_ein
+	jmp schub_befehl            ; $FF:4030 SCHUB adr / SCHUB 0 (rom/schub.asm)
+	jmp schub_funktion          ; $FF:4033   SCHUB(n[,a[,b[,c]]])
+	.cerror schub_ein != $4030, "SCHUB: der Kern ruft $FF:4030 (SCHUB_L_BEF in kern.asm)"
 
 dos_befehl
 	.as
@@ -2083,6 +2087,7 @@ P_TPTR_M   = $039D
 	.include "palette.asm"
 	.include "ws_rollen.asm"
 	.include "brun.asm"
+	.include "schub.asm"
 
 	.cerror * > $7F00, "DOS-ROM zu gross (ab $7F00 liegt die US-Tastatur)"
 

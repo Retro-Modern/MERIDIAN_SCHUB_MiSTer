@@ -72,6 +72,47 @@ While SCHUB is off, bit 3 is ignored and KRAN copies as before. Other copy
 modes, fill and transparency keep their meaning. The mode is latched at the
 start of a job, so switching does not change half a job.
 
+## SCHUB from BASIC
+
+MERIDIAN BASIC in this core knows one more word, `SCHUB` (token 242):
+
+| | |
+| --- | --- |
+| `SCHUB adr` | stop, set start address `adr`, clear the mailbox, start (also switches SCHUB on) |
+| `SCHUB 0` | stop and switch off |
+| `SCHUB(n[,a[,b[,c]]])` | call function `n` of the running program, wait, return its 32-bit result |
+| `SCHUB(-1)` | status byte `$CD09` |
+
+The usual way is to build the RISC-V program as a MER file on a computer,
+`BLOAD "NAME"` it (to `$04:0000` = 262144, for example) and start it with
+`SCHUB 262144`. BASIC and the RISC-V program talk through a mailbox in the
+system bank, which the RISC-V program reaches through the uncached alias:
+
+| 65C816 | RISC-V | 32-bit word |
+| --- | --- | --- |
+| `$FE:1800` | `$80FE1800` | state: 0 free, 1 request (BASIC), 2 done (SCHUB) |
+| `$FE:1804` | `$80FE1804` | `n` |
+| `$FE:1808` | `$80FE1808` | `a` |
+| `$FE:180C` | `$80FE180C` | `b` |
+| `$FE:1810` | `$80FE1810` | `c` |
+| `$FE:1814` | `$80FE1814` | result |
+
+`SCHUB()` writes `n`, `a`, `b`, `c` (sign-extended, missing values 0), then
+state 1, and waits for state 2. The RISC-V program waits for state 1, reads
+the values, writes the result and then state 2; BASIC sets the state back
+to 0. While BASIC waits it checks `Esc` and the status: if SCHUB stops or
+reports an address error, `SCHUB()` ends with `?ILLEGAL QUANTITY`. After
+`Esc` the request is withdrawn; restart the RISC-V program with
+`SCHUB adr` if it may still answer the old request.
+
+`tools/schubdemo.py` builds `programme/rvdemo.mer`, a complete example of
+such a program (about 40 instructions, encoded in the script, so no RISC-V
+toolchain is needed); `programme/schubdemo.bas` uses it.
+
+The code is `rom/schub.asm` in the system ROM (entries `$FF:4030` and
+`$FF:4033`, kernel command 29 and function 10); `basic/meridian.s` only
+reads the values.
+
 ## Tests
 
 - `sim/schub_test`: `make`, then `./obj_dir/control` runs real RV32IM code
@@ -84,6 +125,7 @@ start of a job, so switching does not change half a job.
 
 ## Register space kept free
 
-`$00:CD00–$CD1F` and KRAN mode bit 3 are used by SCHUB. The original
+`$00:CD00–$CD1F`, KRAN mode bit 3, the mailbox `$FE:1800–$FE:1817` and
+the BASIC token 242 (`SCHUB`) are used by SCHUB. The original
 MERIDIAN 816 keeps them free, so programs for the original run here
 unchanged.

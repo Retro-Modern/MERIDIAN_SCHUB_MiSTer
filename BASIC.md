@@ -21,6 +21,7 @@ programs in `programme/` (and on the demo disk) are longer examples.
 - [Drives and files](#drives-and-files) – `DRIVE` `DIR` `SAVE` `LOAD` `BSAVE` `BLOAD` `BRUN` `SCRATCH` `HEADER`
 - [Network](#network) – `NET` `NET()` `NET$()`
 - [Memory and machine code](#memory-and-machine-code) – `PEEK` `POKE` `WAIT` `FRE` `USR` `MONITOR`
+- [SCHUB](#schub) – `SCHUB` `SCHUB()` (RISC-V co-processor, SCHUB core only)
 - [Error messages](#error-messages)
 - [All MERIDIAN words at a glance](#all-meridian-words-at-a-glance)
 
@@ -711,6 +712,41 @@ computer and `tools/senden.py` (README), or `BLOAD` them.
 The machine-code monitor with assembler, disassembler and single step
 (README). `X` goes back to BASIC.
 
+## SCHUB
+
+Only in the SCHUB core: the RISC-V co-processor (see `SCHUB.md`). BASIC
+loads a RISC-V program with `BLOAD`, starts it with `SCHUB` and calls its
+functions with `SCHUB()`. Programs that use these words do not run on the
+original MERIDIAN 816. They need the expansion memory (SDRAM).
+
+### SCHUB adr / SCHUB 0
+
+`SCHUB adr` stops SCHUB, sets the start address `adr` (divisible by 4),
+clears the mailbox and starts the RISC-V program there. It also switches
+SCHUB on when it is off in the MiSTer menu. `SCHUB 0` stops SCHUB and
+switches it off (the menu shows Off again).
+
+### SCHUB(n[,a[,b[,c]]]) / SCHUB(-1)
+
+Calls function `n` (0–8 388 607) of the running RISC-V program with up to
+three values (−8 388 608…8 388 607, missing ones are 0) and waits for its
+answer, a 32-bit number with sign. `Esc` stops the wait with `BREAK`.
+`?ILLEGAL QUANTITY` means SCHUB is not running or has had an address error.
+`SCHUB(-1)` returns the status byte (`$CD09`): bit 7 present, 3 address
+error, 2 bus busy, 1 running, 0 on.
+
+`programme/schubdemo.bas` with `RVDEMO.MER` (built by `tools/schubdemo.py`)
+has three functions: 0 multiplies, 1 counts primes, 2 fills the screen.
+
+```basic
+10 BLOAD "RVDEMO":SCHUB 262144
+20 PRINT SCHUB(0,4321,1234)
+30 PRINT SCHUB(1,20000);"PRIMES BELOW 20000"
+40 SCHUB 0
+```
+
+How a RISC-V program answers is in `SCHUB.md` ("SCHUB from BASIC").
+
 ## Error messages
 
 Besides Microsoft's messages, MERIDIAN BASIC knows: `?FILE NOT FOUND`,
@@ -745,7 +781,7 @@ Besides Microsoft's messages, MERIDIAN BASIC knows: `?FILE NOT FOUND`,
 | `LINE` | draw a line | `SOUND` | a note |
 | `LOOK` | workshop look | `SPRITE` | show and move a sprite |
 | `MAP` | show a workshop map | `STAMP` | put a picture into the bitmap |
-| | | `TILE` / `TILE()` | set / read a map cell |
+| `SCHUB` / `SCHUB()` | start / call RISC-V (SCHUB core) | `TILE` / `TILE()` | set / read a map cell |
 | | | `WHILE` … `WEND` | loop |
 
 `LOAD`, `SAVE`, `PEEK`, `POKE`, `WAIT` and `FRE` are Microsoft's, with the
